@@ -77,16 +77,17 @@ export default class DictionaryPlugin extends Plugin {
         });
 
         this.registerDomEvent(document.body, "contextmenu", (event) => {
-            //@ts-ignore
-            if (this.settings.shouldShowCustomContextMenu && event.path.find((el: HTMLElement) => {
+            const evPath = (event as any).composedPath ? (event as any).composedPath() : ((event as any).path || []);
+            const hasMarkdownPreview = Array.isArray(evPath) && evPath.some((el: any) => {
                 try {
-                    return el.hasClass("markdown-preview-view");
+                    return el?.classList?.contains("markdown-preview-view") || (typeof el?.hasClass === "function" && el.hasClass("markdown-preview-view"));
                 } catch (error) {
                     return false;
                 }
-            })) {
-                const selection = window.getSelection().toString();
-                if (selection && this.app.workspace.activeLeaf?.getViewState()?.state.mode === "preview") {
+            });
+            if (this.settings.shouldShowCustomContextMenu && hasMarkdownPreview) {
+                const selection = window.getSelection()?.toString() || "";
+                if (selection && this.app.workspace.activeLeaf?.getViewState()?.state?.mode === "preview") {
                     event.preventDefault();
 
                     const fileMenu = new Menu(this.app);
@@ -146,6 +147,10 @@ export default class DictionaryPlugin extends Plugin {
 
     onunload(): void {
         console.log('unloading dictionary');
+        if (this.synonymPopover) {
+            this.synonymPopover.destroy();
+            this.synonymPopover = null;
+        }
     }
 
     handleContextMenuHelper = (menu: Menu, editor: Editor, _: MarkdownView): void => {

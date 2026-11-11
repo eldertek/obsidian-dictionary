@@ -120,38 +120,49 @@ export class FreeDictionarySynonymProvider extends Base implements SynonymProvid
             return Promise.reject("Word doesnt exist in this Dictionary");
         }
 
-        const meanings: Meaning[] = (await JSON.parse(result) as DictionaryWord[]).first().meanings;
-        const synonyms: Synonym[] = [];
+        let parsed: any;
+        try {
+            parsed = JSON.parse(result);
+        } catch (e) {
+            return Promise.reject(e);
+        }
 
-        // The default POS provider seems pretty wonky at the moment,
-        // so let's include non-matches in the results as well
+        if (!Array.isArray(parsed) || parsed.length === 0 || !parsed[0].meanings) {
+            return Promise.reject("Word doesnt exist in this Dictionary");
+        }
+
+        const meanings: Meaning[] = parsed[0].meanings;
+        const synonyms: Synonym[] = [];
         const nonPOSMatch: Synonym[] = [];
 
         meanings.forEach(meaning => {
-            if (Number.isNumber(pos) && !this.getDoesPosMatch(meaning, pos)) {
-                meaning.definitions.forEach(def => {
-                    if (def.synonyms) {
-                        def.synonyms.forEach(synonym => {
-                            nonPOSMatch.push({
-                                word: synonym,
-                            })
-                        })
-                    }
-                })
-                return;
+            const isMatch = !Number.isNumber(pos) || this.getDoesPosMatch(meaning, pos);
+            const target = isMatch ? synonyms : nonPOSMatch;
+
+            if (meaning.synonyms && Array.isArray(meaning.synonyms)) {
+                meaning.synonyms.forEach(synonym => {
+                    target.push({ word: synonym });
+                });
             }
 
-            meaning.definitions.forEach(def => {
-                if (def.synonyms) {
-                    def.synonyms.forEach(synonym => {
-                        synonyms.push({
-                            word: synonym,
-                        })
-                    })
-                }
-            })
-        })
+            if (meaning.definitions && Array.isArray(meaning.definitions)) {
+                meaning.definitions.forEach(def => {
+                    if (def.synonyms && Array.isArray(def.synonyms)) {
+                        def.synonyms.forEach(synonym => {
+                            target.push({ word: synonym });
+                        });
+                    }
+                });
+            }
+        });
 
-        return synonyms.concat(nonPOSMatch);
+        const seen = new Set<string>();
+        return synonyms.concat(nonPOSMatch).filter(s => {
+            if (!s.word) return false;
+            const lower = s.word.toLowerCase();
+            if (seen.has(lower)) return false;
+            seen.add(lower);
+            return true;
+        });
     }
 }

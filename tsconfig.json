@@ -5,7 +5,7 @@
     "baseUrl": ".",
     "inlineSources": true,
     "module": "ESNext",
-    "target": "es6",
+    "target": "ES2020",
     "allowJs": true,
     "moduleResolution": "node",
     "importHelpers": true,
@@ -14,9 +14,7 @@
     },
     "lib": [
       "dom",
-      "es5",
-      "scripthost",
-      "es2015"
+      "es2020"
     ],
   },
   "include": ["**/*.ts"],
